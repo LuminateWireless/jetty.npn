@@ -7,7 +7,7 @@
   </parent>
 	<groupId>org.eclipse.jetty.npn</groupId>
   <artifactId>npn-project</artifactId>
-  <version>1.1.1-SNAPSHOT</version>
+  <version>1.1.1.v20121030</version>
   <name>Jetty :: Next Protocol Negotiation :: Project</name>
   <packaging>pom</packaging>
   <scm>
