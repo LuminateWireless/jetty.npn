@@ -19,10 +19,10 @@
 
 package org.eclipse.jetty.npn;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSocket;
 
@@ -102,7 +102,7 @@ public class NextProtoNego
      */
     public static boolean debug = false;
 
-    private static Map<Object, Provider> objects = Collections.synchronizedMap(new WeakHashMap<Object, Provider>());
+    private static Map<Object, Provider> objects = new ConcurrentHashMap<>();
 
     private NextProtoNego()
     {
