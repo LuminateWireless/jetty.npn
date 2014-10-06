@@ -207,8 +207,10 @@ public class NextProtoNego
          * among the ones sent by the server.</p>
          *
          * @param protocols the protocols sent by the server
-         * @return the protocol selected by the application, or null if the
-         * NextProtocol SSL message should not be sent to the server
+         * @return the protocol selected by the application.
+         * A {@code null} return value indicates there are no
+         * common next protocols and will fail the SSL handshake
+         * with the no_application_protocol(120) alert.
          */
         public String selectProtocol(List<String> protocols);
     }
