@@ -16,19 +16,17 @@
 //  ========================================================================
 //
 
-
 package org.eclipse.jetty.npn;
 
 import java.util.List;
 import java.util.Map;
-import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSocket;
 
 /**
  * <p>{@link NextProtoNego} provides an API to applications that want to make use of the
- * <a href="http://technotes.googlecode.com/git/nextprotoneg.html">Next Protocol Negotiation</a>.</p>
+ * <a href="https://tools.ietf.org/html/draft-agl-tls-nextprotoneg">Next Protocol Negotiation</a>.</p>
  * <p>The NPN extension is only available when using the TLS protocol, therefore applications must
  * ensure that the TLS protocol is used:</p>
  * <pre>
@@ -44,7 +42,7 @@ import javax.net.ssl.SSLSocket;
  * with the negotiation of the next protocol.</p>
  * <p>Client side typical usage:</p>
  * <pre>
- * SSLSocket sslSocket = ...;
+ * final SSLSocket sslSocket = ...;
  * NextProtoNego.put(sslSocket, new NextProtoNego.ClientProvider()
  * {
  *     &#64;Override
@@ -56,27 +54,30 @@ import javax.net.ssl.SSLSocket;
  *     &#64;Override
  *     public void unsupported()
  *     {
+ *         NextProtoNego.remove(sslSocket);
  *     }
  *
  *     &#64;Override
  *     public String selectProtocol(List&lt;String&gt; protocols)
  *     {
+ *         NextProtoNego.remove(sslSocket);
  *         return protocols.get(0);
  *     }
  *  });
  * </pre>
  * <p>Server side typical usage:</p>
  * <pre>
- * SSLSocket sslSocket = ...;
+ * final SSLSocket sslSocket = ...;
  * NextProtoNego.put(sslSocket, new NextProtoNego.ServerProvider()
  * {
  *     &#64;Override
  *     public void unsupported()
  *     {
+ *         NextProtoNego.remove(sslSocket);
  *     }
  *
  *     &#64;Override
- *     public List<String> protocols()
+ *     public List&lt;String&gt; protocols()
  *     {
  *         return Arrays.asList("http/1.1");
  *     }
@@ -84,14 +85,13 @@ import javax.net.ssl.SSLSocket;
  *     &#64;Override
  *     public void protocolSelected(String protocol)
  *     {
+ *         NextProtoNego.remove(sslSocket);
  *         System.out.println("Protocol Selected is: " + protocol);
  *     }
  *  });
  * </pre>
- * <p>There is no need to unregister {@link SSLSocket} or {@link SSLEngine} instances, as they
- * are kept in a {@link WeakHashMap} and will be garbage collected when the application does not
- * hard reference them anymore. However, methods to explicitly unregister {@link SSLSocket} or
- * {@link SSLEngine} instances are provided.</p>
+ * <p>The implementation must make sure to remove the {@link SSLSocket} or {@link SSLEngine}
+ * instances when the NPN interaction is completed.</p>
  * <p>In order to help application development, you can set the {@link NextProtoNego#debug} field
  * to {@code true} to have debug code printed to {@link System#err}.</p>
  */
@@ -102,7 +102,7 @@ public class NextProtoNego
      */
     public static boolean debug = false;
 
-    private static Map<Object, Provider> objects = new ConcurrentHashMap<>();
+    private static final Map<Object, Provider> objects = new ConcurrentHashMap<>();
 
     private NextProtoNego()
     {
@@ -111,7 +111,7 @@ public class NextProtoNego
     /**
      * <p>Registers a SSLSocket with a provider.</p>
      *
-     * @param socket the socket to register with the provider
+     * @param socket   the socket to register with the provider
      * @param provider the provider to register with the socket
      * @see #remove(SSLSocket)
      */
@@ -144,7 +144,7 @@ public class NextProtoNego
     /**
      * <p>Registers a SSLEngine with a provider.</p>
      *
-     * @param engine the engine to register with the provider
+     * @param engine   the engine to register with the provider
      * @param provider the provider to register with the engine
      * @see #remove(SSLEngine)
      */
@@ -154,7 +154,6 @@ public class NextProtoNego
     }
 
     /**
-     *
      * @param engine an engine registered with {@link #put(SSLEngine, Provider)}
      * @return the provider registered with the given engine
      */
@@ -205,12 +204,15 @@ public class NextProtoNego
         /**
          * <p>Callback invoked to let the application select a protocol
          * among the ones sent by the server.</p>
+         * <p>The implementation may return null to indicate to the server that
+         * it was not possible to negotiate a protocol.</p>
+         * <p>The implementation may throw an exception to indicate that the
+         * TLS handshake must be aborted.</p>
          *
          * @param protocols the protocols sent by the server
-         * @return the protocol selected by the application.
-         * A {@code null} return value indicates there are no
-         * common next protocols and will fail the SSL handshake
-         * with the no_application_protocol(120) alert.
+         * @return the protocol selected by the application, or {@code null}
+         * to indicate to the server that it was not possible to negotiate
+         * a protocol
          */
         public String selectProtocol(List<String> protocols);
     }
@@ -241,9 +243,13 @@ public class NextProtoNego
         /**
          * <p>Callback invoked to let the application know the protocol selected
          * by the client.</p>
-         * <p>This callback is invoked only if the client sent a NextProtocol SSL message.</p>
+         * <p>The protocol selected may be {@code null} if the client could not
+         * negotiate a protocol.</p>
+         * <p>The implementation may throw an exception to indicate that the TLS
+         * handshake must be aborted.</p>
          *
-         * @param protocol the selected protocol
+         * @param protocol the selected protocol, or {@code null} if the client
+         *                 could not negotiate a protocol
          */
         public void protocolSelected(String protocol);
     }
